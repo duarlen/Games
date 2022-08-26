@@ -55,6 +55,7 @@ class _GamePageState extends State<GamePage> {
   // 初始化所有的 item
   void _initAllItems() {
     this.gameStatus = GameStatus.normal;
+    this.second = 0;
     _stopTimer();
     _initItemModels();
     _randomLandmine();
