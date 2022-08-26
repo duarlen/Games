@@ -1,6 +1,7 @@
+import 'dart:async';
 import 'dart:math';
-
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:game_minesweeper/game_level_model.dart';
 import 'package:game_minesweeper/item_model.dart';
 import 'package:get/get.dart';
@@ -16,6 +17,16 @@ class GamePage extends StatefulWidget {
 class _GamePageState extends State<GamePage> {
   late GameLevelModel levelModel;
   late List<List<ItemModel>> itemModels;
+  var gameStatus = GameStatus.normal;
+  var second = 0;
+  var isTimering = false;
+  Timer? timer;
+
+  @override
+  void dispose() {
+    _stopTimer();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -43,6 +54,8 @@ class _GamePageState extends State<GamePage> {
 
   // 初始化所有的 item
   void _initAllItems() {
+    this.gameStatus = GameStatus.normal;
+    _stopTimer();
     _initItemModels();
     _randomLandmine();
     _statisticsLandmineCount();
@@ -150,27 +163,53 @@ class _GamePageState extends State<GamePage> {
 
     // 失败
     if (itemModel.number == 9) {
-      print(" 游戏失败");
+      Fluttertoast.showToast(msg: "游戏失败");
       itemModel.wrongClick = true;
+      this.gameStatus = GameStatus.failure;
       _openAllItems();
-      setState(() {});
+      _stopTimer();
       return;
     }
 
     // 胜利
     if (_isSuccess()) {
-      print(" 游戏胜利");
+      Fluttertoast.showToast(msg: "游戏胜利");
+      this.gameStatus = GameStatus.success;
       _openAllItems();
+      _stopTimer();
       return;
     }
 
     // 相邻的周围雷为 0 的，自动打开
-    final list = _neighborItems(itemModel);
-    final count = list.where((element) => element.number == 9).length;
-    if (count == 0) {
+    if (itemModel.number == 0) {
+      final list = _neighborItems(itemModel);
       for (var element in list) {
         _openNeighborBlankItems(element);
       }
+    }
+  }
+
+  // 开启计时器
+  void _startTimer() {
+    if (this.isTimering == true) {
+      return;
+    }
+    _stopTimer();
+    this.isTimering = true;
+    this.second = 0;
+    this.timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        this.second += 1;
+      });
+    });
+  }
+
+  // 停止计时器
+  void _stopTimer() {
+    if (this.timer != null) {
+      this.timer?.cancel();
+      this.timer = null;
+      this.isTimering = false;
     }
   }
 
@@ -191,16 +230,72 @@ class _GamePageState extends State<GamePage> {
   }
 
   Widget _buildHeaderView() {
+    final faceImageName;
+    switch (this.gameStatus) {
+      case GameStatus.normal:
+        faceImageName = "images/face_normal.png";
+        break;
+      case GameStatus.success:
+        faceImageName = "images/face_success.png";
+        break;
+      case GameStatus.failure:
+        faceImageName = "images/face_failure.png";
+        break;
+    }
+
+    int num1 = 0;
+    int num2 = 0;
+    int num3 = 0;
+    int currentSecond = this.second;
+    num1 = currentSecond % 10;
+    currentSecond = (currentSecond / 10).toInt();
+    num2 = currentSecond % 10;
+    currentSecond = (currentSecond / 10).toInt();
+    num3 = currentSecond % 10;
+    currentSecond = (currentSecond / 10).toInt();
+
     return Container(
       width: 1.sw,
       height: 100.w,
-      color: Colors.red,
+      padding: EdgeInsets.only(left: 50.w, right: 50.w),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Container(
+            width: 39.w,
+            height: 23.w,
+          ),
+          GestureDetector(
+            child: Container(
+              width: 40.w,
+              height: 40.w,
+              child: Image(image: AssetImage(faceImageName)),
+            ),
+            onTap: () {
+              setState(() {
+                _initAllItems();
+              });
+            },
+          ),
+          Container(
+            width: 39.5.w,
+            height: 23.w,
+            color: Colors.red,
+            child: Row(
+              children: [
+                SizedBox(width: 13.w, height: 23.w, child: Image(image: AssetImage("images/classic_numbers_${num3}.png"))),
+                SizedBox(width: 13.w, height: 23.w, child: Image(image: AssetImage("images/classic_numbers_${num2}.png"))),
+                SizedBox(width: 13.w, height: 23.w, child: Image(image: AssetImage("images/classic_numbers_${num1}.png"))),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildGameView() {
     final itemCount = levelModel.itemCount * levelModel.itemCount;
-
     return Container(
         height: 1.sw,
         width: 1.sw,
@@ -240,6 +335,7 @@ class _GamePageState extends State<GamePage> {
                 child: Image(image: AssetImage(imageName)),
               ),
               onTap: () {
+                _startTimer();
                 setState(() {
                   _openNeighborBlankItems(itemModel);
                 });

@@ -4,6 +4,12 @@ enum ItemMarkState {
   doubt,
 }
 
+enum GameStatus {
+  normal,
+  success,
+  failure,
+}
+
 class ItemModel {
   final int x;
   final int y;
